@@ -19,11 +19,14 @@ Vagrant.configure("2") do |config|
     master.vm.network "private_network", ip: "192.168.33.54"
     master.vm.provider "virtualbox" do |vb|
       vb.gui = false
-      vb.memory = "512"
+      vb.memory = "1024"
     end
+    master.vm.provision "file", source: "../../install/ci/init.sh", destination: "init.sh"
     master.vm.provision "shell", inline: <<-SHELL
       sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
       systemctl restart sshd
+      chmod +x init.sh
+      ./init.sh
     SHELL
   end
 end
