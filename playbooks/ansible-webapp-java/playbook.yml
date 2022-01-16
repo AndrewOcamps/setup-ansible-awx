@@ -1,0 +1,85 @@
+---
+- name: CICD webapp JAVA
+  hosts: all
+  vars_files:
+  - vars.yml
+  - nexus-credentials
+  - git-credentials
+  tasks:
+
+  - name: INSTALAR DEPENDENCIA MAVEN
+    package:
+      name: maven
+      state: present
+    when: inventory_hostname == 'ci'
+
+  - name: INSTALAR DEPENDENCIA GIT
+    package:
+      name: git
+      state: present 
+    when: inventory_hostname == 'ci'
+
+  - name: CLONAR PROYECTO WEBAPP JAVA
+    git:
+      repo: '{{ app_repo }}'
+      dest: /tmp/webapp-java
+    when: inventory_hostname == 'ci'
+
+  - name: TEST MVN CLEAN
+    shell: 'mvn clean'
+    args:
+      chdir: '{{ app_base_path }}'
+    when: inventory_hostname == 'ci'
+    
+  - name: BUILD MVN PACKAGE
+    shell: 'mvn package'
+    args:
+      chdir: '{{ app_base_path }}'
+    when: inventory_hostname == 'ci'
+
+  - name: CONFIGURE MAVEN SETTINGS
+    template:
+      src: files/settings.xml
+      dest: /tmp/settings.xml
+    when: inventory_hostname == 'ci'
+
+  - name: DEPLOY ARTIFACTORY
+    shell: 'mvn clean deploy -s /tmp/settings.xml' 
+    args:
+      chdir: '{{ app_base_path }}'
+    when: inventory_hostname == 'ci'
+
+  - name: INSTALAR DEPENDENCIAS
+    yum: name=python-pip state=present
+    when: inventory_hostname == 'node1'
+
+  - name: Install lxml
+    pip: name=lxml
+    when: inventory_hostname == 'node1'
+
+  - name: DESCARGAR RELEASE 
+    maven_artifact:
+      group_id: 'com.sample.webproject'
+      artifact_id: 'SampleWebApp'
+      repository_url: 'http://192.168.33.54:8081/repository/nx-releases/'
+      extension: 'war'
+      username: admin
+      password: admin
+      version: 'latest'
+      mode: 0777
+      dest: /opt/deployments/webapp.war
+    when: inventory_hostname == 'node1'
+
+  - name: DEPLOY JBOSS
+    shell: 'docker exec -it wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect --command="deploy /deploy/webapp.war --force"'
+    when: inventory_hostname == 'node1'
+
+  - name: ELIMINAR REPOSITORIO
+    file:
+      path: '{{ item }}'
+      state: absent
+    when: inventory_hostname == 'node1'
+    with_items:
+    - /tmp/webapp-java
+    - /opt/deployments/webapp.war
+ 

@@ -1,0 +1,51 @@
+---
+- name: CICD webapp JAVA
+  hosts: ci
+  vars_files:
+  - vars.yml
+  - nexus-credentials
+  - git-credentials
+  tasks:
+
+  - name: INSTALAR DEPENDENCIA MAVEN
+    package:
+      name: maven
+      state: present
+
+  - name: INSTALAR DEPENDENCIA GIT
+    package:
+      name: git
+      state: present 
+
+  - name: CLONAR PROYECTO WEBAPP JAVA
+    git:
+      repo: '{{ app_repo }}'
+      dest: /tmp/webapp-java
+
+  - name: TEST MVN CLEAN
+    shell: 'mvn clean'
+    args:
+      chdir: '{{ app_base_path }}'
+    
+  - name: BUILD MVN PACKAGE
+    shell: 'mvn package'
+    args:
+      chdir: '{{ app_base_path }}'
+
+  - name: CONFIGURE MAVEN SETTINGS
+    template:
+      src: files/settings.xml
+      dest: /tmp/settings.xml
+
+  - name: DEPLOY ARTIFACTORY
+    shell: 'mvn clean deploy -s /tmp/settings.xml' 
+    args:
+      chdir: '{{ app_base_path }}'
+
+  - name: ELIMINAR REPOSITORIO
+    file:
+      path: '{{ item }}'
+      state: absent
+    with_items:
+    - /tmp/webapp-java
+ 
