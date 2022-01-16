@@ -1,0 +1,36 @@
+---
+- name: CICD webapp JAVA
+  hosts: node1
+  vars_files:
+  - vars.yml
+  - git-credentials
+  tasks:
+
+  - name: INSTALAR DEPENDENCIAS
+    yum: name=python-pip state=present
+
+  - name: Install lxml
+    pip: name=lxml
+
+  - name: DESCARGAR RELEASE 
+    maven_artifact:
+      group_id: 'com.sample.webproject'
+      artifact_id: 'SampleWebApp'
+      repository_url: 'http://192.168.33.54:8081/repository/nx-releases/'
+      extension: 'war'
+      username: admin
+      password: admin
+      version: 'latest'
+      mode: 0777
+      dest: /opt/deployments/webapp.war
+
+  - name: DEPLOY JBOSS
+    shell: 'docker exec -it wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect --command="deploy /deploy/webapp.war --force"'
+
+  - name: ELIMINAR REPOSITORIO
+    file:
+      path: '{{ item }}'
+      state: absent
+    with_items:
+    - /opt/deployments/webapp.war
+ 

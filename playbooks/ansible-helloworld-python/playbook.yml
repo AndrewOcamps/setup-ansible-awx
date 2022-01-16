@@ -1,0 +1,63 @@
+---
+- name: CICD PYTHON APP
+  hosts: all
+  vars:
+    - app_user: pyuser
+    - app_path: /opt/app/helloworld
+  vars_files:
+  - git-credentials
+  tasks:
+    - name: INSTALAR DEPENDENCIAS
+      package:
+        name:
+          - python3
+          - python-devel
+          - python-virtualenv
+          - git
+        state: present
+
+    - name: CREAR USUARIO APP
+      user:
+        name: '{{ app_user }}'
+        state: present
+        shell: /sbin/nologin
+
+    - name: VERIFICAR SI EXISTE UNA APLICACION EN EJECUCION
+      shell: "ps -fu {{ app_user }} | grep app.py |awk '{print $2}'"
+      register: pid
+
+    - name: DELETENER APLICACION
+      shell: 'kill -9 {{ pid.stdout }}'
+      when: pid.stdout != ""
+
+    - name: ELIMINAR REPOSITORIO
+      file:
+        path: '{{ item }}'
+        state: absent
+      with_items:
+      - '{{ app_path }}'
+ 
+    - name: CREAR ESTRUCTURA DE DIRECTORIOS
+      file:
+        path: '{{ app_path }}'
+        state: directory
+        owner: '{{ app_user }}'
+        mode: 0755
+
+    - name: CLONAR PROYECTO 
+      git:
+        repo: 'http://{{ git_user }}:{{ git_pass }}@192.168.33.53:3000/ocampoge/helloworld-python.git'
+        dest: '{{ app_path }}'
+
+    - name: INSTALAR DEPENDENCIAS DE LA APLICACION
+      pip: 
+        requirements: '{{ app_path }}/requirements.txt'
+        virtualenv: '{{ app_path }}/venv'
+        virtualenv_python: python3
+
+    - name: INICIAR APLICACION
+      shell: '{{ app_path }}/venv/bin/python {{ app_path }}/app.py &'
+      async: 10
+      poll: 0
+      become_user: '{{ app_user }}'
+

@@ -1,0 +1,7 @@
+---
+- name: CI webapp JAVA
+  import_playbook: playbook-ci.yml
+
+- name: CD webapp JAVA
+  import_playbook: playbook-cd.yml
+
