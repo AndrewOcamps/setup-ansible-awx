@@ -26,7 +26,7 @@
       shell: "ps -fu {{ app_user }} | grep app.py |awk '{print $2}'"
       register: pid
 
-    - name: DELETENER APLICACION
+    - name: DETENER APLICACION
       shell: 'kill -9 {{ pid.stdout }}'
       when: pid.stdout != ""
 
